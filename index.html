@@ -555,7 +555,7 @@
         <!-- PC端按钮区：保存 + 小重置 -->
         <div class="pc-action-row">
             <button class="btn-download" onclick="downloadImage()">保存卡片</button>
-            <button type="button" class="btn-reset-mini" onclick="window.showResetModal()" title="重置所有内容">↺</button>
+            <button type="button" class="btn-reset-mini" onclick="window.resetData()" title="重置所有内容">↺</button>
         </div>
         
         <!-- 移动端专属控制条 -->
@@ -565,7 +565,7 @@
                 <span style="font-size: 10px; color: #888; margin-top: 2px;">保存失败请长按图片</span>
             </div>
             <div class="mobile-btn-group">
-                <button type="button" class="btn-reset-mini" onclick="window.showResetModal()" title="重置">↺</button>
+                <button type="button" class="btn-reset-mini" onclick="window.resetData()" title="重置">↺</button>
                 <button class="btn-download-mini" onclick="downloadImage()">保存</button>
                 <button class="btn-toggle-view" onclick="toggleMobilePreview()" id="toggleBtn">展开全图 ⬇</button>
             </div>
@@ -639,7 +639,7 @@
     const HIERARCHY = {
         "east": {
             label: "东方体系",
-            display: "EASTERN SYSTEM / 东方体系",
+            display: "EASTERN SYSTEM /东方体系",
             categories: {
                 "east_calc": { 
                     label: "命理 (Calculation)", 
@@ -1284,7 +1284,7 @@
 
         // QR Footer Height (compact side-by-side)
         // Reduced from 140 to make spacing tighter as requested
-        y += 70; // Even smaller, was 80
+        y += 80; // Bigger for larger QR
 
         y += 40; // Footer margin
         y += 20; // Invisible spacer line
@@ -1412,17 +1412,20 @@
         
         // --- Footer QR Area (Updated Layout - Tighter) ---
         // Force footer to bottom relative to logicalHeight
-        const footerHeight = 70; // Even tighter
-        curY = logicalHeight - footerHeight - 20; // Allow space for invisible spacer
+        // Calculate where footer starts (height 110 from bottom - slightly taller for bigger QR)
+        const footerHeight = 110;
+        
+        // Reset curY to start of footer area
+        curY = logicalHeight - footerHeight - 20; 
         
         // Divider
         ctx.strokeStyle = C.divider; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.moveTo(50, curY); ctx.lineTo(CANVAS_WIDTH - 50, curY); ctx.stroke();
         
-        curY += 15; // Padding after divider
+        curY += 20; // Padding after divider
         
-        const qrSize = 50; // Smaller QR 50px
-        const gap = 12; 
+        const qrSize = 80; // Bigger QR
+        const gap = 20; 
         
         // Calculate centered block start position
         // Approximate text width ~290
@@ -1445,12 +1448,12 @@
         
         ctx.textAlign = 'left';
         ctx.fillStyle = C.textSub;
-        ctx.font = 'bold 16px "Helvetica Neue", Arial'; 
-        ctx.fillText("想制作类似的扩列图?", textX, textYCenter - 6);
+        ctx.font = 'bold 20px "Helvetica Neue", Arial'; 
+        ctx.fillText("想制作类似的扩列图?", textX, textYCenter - 8);
         
         ctx.fillStyle = state.themeColor;
-        ctx.font = '10px Arial'; 
-        ctx.fillText("扫码二维码访问: yixiaoi.github.io/mystic-card/", textX, textYCenter + 10);
+        ctx.font = '14px Arial'; 
+        ctx.fillText("访问: https://yixiaoi.github.io/mystic-card/", textX, textYCenter + 15);
 
         // Invisible spacer text as requested
         ctx.fillStyle = C.bgGrad2;
