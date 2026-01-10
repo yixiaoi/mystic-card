@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>神秘学扩列图生成器 PRO</title>
+    <style>
+        :root {
+            --bg: #121212;
+            --panel: #1e1e1e;
+            --text: #e0e0e0;
+            --border: #333;
+            --input-bg: #2d2d2d;
+            --accent: #b388ff;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        /* 基础容器 */
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            max-width: 1600px;
+            width: 100%;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* 通用面板样式 */
+        .panel {
+            flex: 1;
+            min-width: 320px;
+            max-width: 450px;
+            background: var(--panel);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 预览栏基础样式 */
+        .column-center {
+            flex: 0 0 auto;
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 10;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            border-radius: 8px;
+        }
+
+        /* 预览控制条（默认隐藏） */
+        .preview-handle { display: none; }
+
+        /* 桌面端按钮容器 */
+        .pc-action-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            width: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 重置小按钮样式 */
+        .btn-reset-mini {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #2a1515;
+            border: 1px solid #5c2b2b;
+            color: #ff6b6b;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            user-select: none;
+            position: relative;
+            z-index: 1002;
+        }
+        .btn-reset-mini:hover, .btn-reset-mini:active {
+            background: #ff4444;
+            color: #fff;
+            border-color: #ff4444;
+            transform: rotate(-90deg);
+        }
+
+        /* === 自定义弹窗样式 (通用) === */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(8px);
+        }
+        .modal-overlay.active { display: flex; }
+        
+        /* 确认重置弹窗内容 */
+        .modal-content-reset {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 12px;
+            padding: 25px;
+            width: 90%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            animation: popIn 0.2s ease-out;
+        }
+
+        /* === 图片保存预览弹窗 (Save Modal) === */
+        .modal-content-save {
+            background: #121212;
+            border: 1px solid #333;
+            border-radius: 12px;
+            width: 95%;
+            max-width: 450px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.9);
+            animation: popIn 0.2s ease-out;
+        }
+
+        .save-modal-header {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e1e1e;
+        }
+        .save-modal-title { font-size: 16px; font-weight: bold; color: #fff; }
+        .save-modal-close { background: none; border: none; color: #888; font-size: 24px; cursor: pointer; line-height: 1; }
+        
+        .save-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 200px;
+        }
+        
+        /* 预览图片本身 */
+        #finalPreviewImg {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            /* 关键：允许用户长按 */
+            pointer-events: auto; 
+            -webkit-user-select: none;
+            -webkit-touch-callout: default;
+        }
+
+        .save-modal-footer {
+            padding: 15px;
+            border-top: 1px solid #333;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* 清晰度选择器 */
+        .quality-selector {
+            display: flex;
+            background: #2d2d2d;
+            border-radius: 8px;
+            padding: 2px;
+            gap: 2px;
+        }
+        .quality-btn {
+            background: transparent;
+            border: none;
+            color: #888;
+            padding: 8px 20px;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        /* 选中状态样式由JS动态注入颜色 */
+        .quality-btn.active {
+            color: #000; /* 文字变黑以适应亮色背景 */
+            font-weight: bold;
+        }
+
+        .save-hint { font-size: 11px; color: #666; text-align: center; }
+
+        @keyframes popIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .modal-title { color: #fff; font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .modal-desc { color: #aaa; font-size: 14px; margin-bottom: 20px; line-height: 1.5; }
+        
+        .modal-actions { display: flex; gap: 10px; justify-content: center; }
+        .modal-btn {
+            flex: 1;
+            padding: 10px 0;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-cancel { background: #333; color: #fff; border: 1px solid #444; }
+        .btn-confirm { background: #ff4444; color: #fff; }
+        
+        /* =========== 桌面端与平板端的 Grid 布局系统 =========== */
+        
+        @media (min-width: 769px) {
+            .container {
+                display: grid;
+                gap: 20px;
+                align-items: start;
+            }
+            .panel { width: 100%; max-width: none; }
+            .column-center {
+                width: 100%;
+                max-width: none;
+                position: sticky;
+                top: 20px;
+            }
+            #panelBasic { grid-area: basic; }
+            #panelDetails { grid-area: details; }
+            #previewColumn { grid-area: preview; }
+        }
+
+        @media (min-width: 1251px) {
+            .container {
+                grid-template-columns: 1fr 500px 1fr;
+                grid-template-areas: "basic preview details";
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1250px) {
+            .container {
+                grid-template-columns: 1fr 400px;
+                grid-template-areas: 
+                    "basic preview"
+                    "details preview";
+            }
+            #previewColumn { margin-left: auto; width: 100%; }
+            canvas { width: 100%; height: auto; }
+        }
+
+        /* =========== 移动端样式 =========== */
+        
+        @media (max-width: 768px) {
+            body { padding: 10px; padding-top: 0; }
+            .container { gap: 15px; display: flex; }
+            .panel, .column-center { grid-area: auto; }
+
+            /* Drawer 模式预览 */
+            .column-center {
+                position: sticky; top: 0; order: -1; max-width: 100%; margin: 0; margin-bottom: 15px;
+                background: rgba(18, 18, 18, 0.98); padding: 0; border-bottom: 1px solid #333;
+                z-index: 1000; width: 100vw; margin-left: -10px; margin-right: -10px;
+                height: 150px; overflow: hidden;
+                transition: height 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+                box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+                display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            }
+            .column-center.expanded { height: 85vh; overflow-y: auto; }
+            .column-center canvas { width: 100%; max-width: 400px; height: auto; box-shadow: none; border-radius: 0; }
+
+            /* 移动端控制条 */
+            .preview-handle {
+                display: flex; width: 100%; padding: 8px 15px;
+                justify-content: space-between; align-items: center;
+                background: linear-gradient(180deg, rgba(30,30,30,0.95) 0%, rgba(30,30,30,0.8) 100%);
+                border-top: 1px solid #333;
+                position: absolute; bottom: 0; left: 0; z-index: 1001;
+                backdrop-filter: blur(5px);
+            }
+            .column-center.expanded .preview-handle { position: sticky; bottom: 0; border-top: 1px solid #444; }
+
+            .handle-text { font-size: 12px; color: #aaa; }
+            .mobile-btn-group { display: flex; align-items: center; gap: 12px; }
+            .btn-toggle-view {
+                background: var(--accent); color: #000; border: none; border-radius: 15px;
+                padding: 5px 15px; font-size: 12px; font-weight: bold; cursor: pointer;
+            }
+            .pc-action-row { display: none; }
+            .btn-download-mini {
+                display: inline-block; background: #333; color: #fff; border: 1px solid #555;
+                border-radius: 15px; padding: 5px 12px; font-size: 12px; cursor: pointer;
+            }
+            .btn-reset-mini { width: 36px; height: 36px; font-size: 16px; border-radius: 8px; }
+            .column-center p { display: none !important; }
+            .panel { min-width: 100%; padding: 15px; }
+            
+            input, select, textarea { 
+                font-size: 14px !important; padding: 8px 12px !important; border-radius: 8px !important;
+                background: rgba(45, 45, 45, 0.8) !important;
+            }
+            ::-webkit-input-placeholder { font-size: 12px; opacity: 0.6; font-weight: normal; }
+            :-ms-input-placeholder { font-size: 12px; opacity: 0.6; font-weight: normal; }
+            ::placeholder { font-size: 12px; opacity: 0.6; font-weight: normal; }
+
+            .appearance-row { flex-direction: column; gap: 10px; }
+            
+            .contact-row {
+                flex-wrap: wrap; gap: 8px; padding: 12px; background: rgba(255,255,255,0.03);
+                border: 1px solid #444; border-radius: 8px; margin-bottom: 12px; position: relative;
+            }
+            .contact-row .input-platform { order: 1; flex: 1 1 calc(100% - 50px) !important; margin-right: 0; }
+            .contact-row .btn-icon {
+                order: 2; flex: 0 0 38px !important; width: 38px !important; height: 38px !important;
+                margin-left: auto; background: rgba(255, 68, 68, 0.1); border-color: rgba(255, 68, 68, 0.3); color: #ff4444; border-radius: 8px;
+            }
+            .contact-row .input-nick { order: 3; flex: 1 1 100% !important; margin-top: 2px; }
+            .contact-row .input-id { order: 4; flex: 1 1 100% !important; margin-top: 2px; }
+
+            .tabs-header { overflow-x: auto; justify-content: flex-start; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+            .tab-item { flex: 0 0 auto; padding: 10px 20px; }
+            .tag-btn { padding: 8px 16px; }
+            h1 { font-size: 18px; }
+        }
+
+        /* 基础样式 (其他) */
+        h1 { margin: 0; font-size: 20px; color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 15px; text-align: center; }
+        h3 { font-size: 13px; color: #888; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center;}
+        .form-group { margin-bottom: 0; }
+        input[type="text"], textarea, select { width: 100%; padding: 10px; background: var(--input-bg); border: 1px solid var(--border); color: white; border-radius: 6px; font-size: 14px; font-family: inherit; }
+        input[type="text"]:focus, textarea:focus { outline: 1px solid white; }
+        textarea { resize: vertical; line-height: 1.5; }
+        .contact-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .contact-row input { padding: 8px; font-size: 13px; }
+        .contact-row .input-platform { flex: 1; min-width: 60px; }
+        .contact-row .input-nick { flex: 2; }
+        .contact-row .input-id { flex: 1.5; }
+        .btn-icon { background: transparent; border: 1px solid #444; color: #888; width: 30px; height: 34px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; flex-shrink: 0; }
+        .btn-icon:hover { border-color: #ff4444; color: #ff4444; }
+        .btn-add-contact { width: 100%; padding: 10px; background: #252525; border: 1px dashed #444; color: #888; border-radius: 6px; cursor: pointer; font-size: 12px; margin-top: 5px; transition: all 0.2s; }
+        .btn-add-contact:hover { border-color: var(--accent); color: var(--accent); }
+        .appearance-row { display: flex; gap: 15px; align-items: stretch; }
+        .color-picker-wrapper { flex: 1; display: flex; align-items: center; gap: 10px; background: var(--input-bg); padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border); }
+        input[type="color"] { background: none; border: none; width: 40px; height: 30px; cursor: pointer; }
+        .bg-toggle-group { flex: 1; display: flex; background: var(--input-bg); border-radius: 6px; border: 1px solid var(--border); padding: 4px; }
+        .bg-btn { flex: 1; border: none; background: transparent; color: #888; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.2s; padding: 6px 0; }
+        .bg-btn.active { background: #444; color: #fff; font-weight: bold; }
+        #btnBgLight.active { background: #eee; color: #000; }
+        .tag-container { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag-btn { font-size: 12px; padding: 6px 14px; background: var(--input-bg); border: 1px solid #444; border-radius: 20px; cursor: pointer; color: #aaa; transition: all 0.2s; user-select: none; }
+        .tag-btn:hover { border-color: #888; color: #fff; }
+        .tag-btn.active { font-weight: bold; color: #000 !important; border-color: transparent; }
+        .tag-btn.custom-added { border-style: dashed; border-color: var(--accent); }
+        .tag-btn-add { font-size: 14px; font-weight: bold; color: #888; background: transparent; border: 1px dashed #666; width: 30px; text-align: center; padding: 6px 0; }
+        .tag-btn-add:hover { color: #fff; border-color: #fff; }
+        input.tag-btn-input { width: 100px !important; padding: 6px 8px !important; border-radius: 20px !important; border: 1px solid var(--accent) !important; background: var(--input-bg) !important; color: #fff !important; font-size: 12px !important; outline: none; text-align: center; }
+        .custom-input { margin-top: 8px; background: transparent !important; border: none !important; border-bottom: 1px solid #555 !important; border-radius: 0 !important; padding: 8px 0 !important; font-size: 12px !important; }
+        .tabs-header { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 15px; }
+        .tab-item { flex: 1; text-align: center; padding: 12px 0; cursor: pointer; font-size: 14px; color: #888; transition: 0.3s; border-bottom: 2px solid transparent; white-space: nowrap; }
+        .tab-item:hover { color: #fff; }
+        .tab-item.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: bold; }
+        .category-block { margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #252525; }
+        .category-header { padding: 12px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: var(--input-bg); transition: 0.2s; }
+        .category-header:hover { background: #333; }
+        .category-header.active { background: #333; }
+        .category-title { font-size: 13px; font-weight: bold; color: #ddd; }
+        .category-count { font-size: 11px; background: #444; padding: 2px 6px; border-radius: 10px; color: #ccc;}
+        .category-header.active .category-title { color: var(--accent); }
+        .category-header.active .category-count { background: var(--accent); color: #000; }
+        .tags-wrapper { padding: 15px; background: #1a1a1a; display: none; border-top: 1px solid var(--border); }
+        .tags-wrapper.show { display: block; animation: slideDown 0.2s ease-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .selected-summary { min-height: 40px; padding: 10px; background: #222; border: 1px dashed #444; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 6px; }
+        .selected-tag { font-size: 11px; padding: 4px 10px; background: var(--accent); color: #000; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .selected-tag:hover { opacity: 0.8; }
+        .selected-tag span { font-weight: bold; opacity: 0.6; }
+        .upload-box { border: 2px dashed #444; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; background: var(--input-bg); color: #888; font-size: 13px; }
+        .upload-box:hover { border-color: #888; color: #fff; }
+        .upload-box.disabled-box { opacity: 0.5; cursor: not-allowed; border-color: #333; }
+        .upload-box.disabled-box:hover { border-color: #333; color: #888; }
+        .upload-box input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 99; display: block; }
+        .upload-box.disabled-box input { cursor: not-allowed; }
+        
+        .btn-clear-photo {
+            position: absolute;
+            top: 50%;
+            right: 15px;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            border: 1px solid #555;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-clear-photo:hover { background: #ff4444; border-color: #ff4444; }
+
+        .btn-download { margin-top: 0; padding: 12px 40px; background: #fff; color: #000; border: none; border-radius: 30px; font-size: 15px; font-weight: bold; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 80%; max-width: 300px; }
+        .btn-download:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+<!-- 1. 确认重置弹窗 -->
+<div id="resetModal" class="modal-overlay">
+    <div class="modal-content modal-content-reset">
+        <div class="modal-title">⚠️ 确认重置?</div>
+        <div class="modal-desc">
+            这将清空所有已填写的信息、标签和本地缓存，且无法撤销。
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn btn-cancel" onclick="closeResetModal()">取消</button>
+            <button class="modal-btn btn-confirm" onclick="confirmReset()">确定重置</button>
+        </div>
+    </div>
+</div>
+
+<!-- 2. 图片保存预览弹窗 (移动端专用) -->
+<div id="savePreviewModal" class="modal-overlay">
+    <div class="modal-content-save">
+        <div class="save-modal-header">
+            <span class="save-modal-title">保存预览 (Preview)</span>
+            <button class="save-modal-close" onclick="closeSaveModal()">×</button>
+        </div>
+        <div class="save-modal-body">
+            <!-- 真正的图片，用于长按 -->
+            <img id="finalPreviewImg" src="" alt="生成图">
+        </div>
+        <div class="save-modal-footer">
+            <div class="quality-selector">
+                <button class="quality-btn" onclick="window.updatePreviewImage(1)">1x (标)</button>
+                <button class="quality-btn active" onclick="window.updatePreviewImage(2)">2x (高)</button>
+                <button class="quality-btn" onclick="window.updatePreviewImage(4)">4x (超)</button>
+            </div>
+            <button class="btn-download" style="width:100%; margin:0;" onclick="downloadFromModal()">保存到相册</button>
+            <span class="save-hint">如果点击按钮无反应，请长按上方图片保存</span>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    
+    <!-- LEFT PANEL: BASIC INPUTS -->
+    <div class="panel" id="panelBasic">
+        <h1>BASIC SETUP</h1>
+        
+        <!-- 0. 外观设置 -->
+        <div class="form-group">
+            <h3>0. 外观设置 (Appearance)</h3>
+            <div class="appearance-row">
+                <!-- Theme Color -->
+                <div class="color-picker-wrapper">
+                    <input type="color" id="colorInput" value="#b388ff">
+                    <span style="font-size: 12px; color: #888;">主题色</span>
+                </div>
+                <!-- Background Toggle -->
+                <div class="bg-toggle-group">
+                    <button class="bg-btn active" id="btnBgDark" onclick="setBgMode(true)">Dark</button>
+                    <button class="bg-btn" id="btnBgLight" onclick="setBgMode(false)">Light</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. 头像 -->
+        <div class="form-group">
+            <h3>1. 头像 (Avatar)</h3>
+            <div class="upload-box">
+                <span id="avatarLabel">点击上传头像</span>
+                <input type="file" id="avatarInput" accept="image/*">
+            </div>
+        </div>
+
+        <!-- 2. 昵称 -->
+        <div class="form-group">
+            <h3>2. 昵称 (Name)</h3>
+            <input type="text" id="nameInput" placeholder="输入圈名..." value="Mystic User">
+        </div>
+
+        <!-- 3. 性别 -->
+        <div class="form-group">
+            <h3>3. 性别 (Gender)</h3>
+            <div class="tag-container" id="genderTags"></div>
+            <input type="text" class="custom-input" id="customGender" placeholder="自定义性别...">
+        </div>
+
+        <!-- 4. 性取向 -->
+        <div class="form-group">
+            <h3>
+                4. 性取向 (Orientation)
+                <label style="font-size:10px; cursor:pointer; text-transform:none;">
+                    <input type="checkbox" id="hideOrientation"> 隐藏
+                </label>
+            </h3>
+            <div class="tag-container" id="orientationTags"></div>
+        </div>
+
+        <!-- 5. 联系方式 (New Design) -->
+        <div class="form-group">
+            <h3>5. 联系方式 (Contact)</h3>
+            
+            <div id="contactListContainer">
+                <!-- 动态生成的联系方式行 -->
+            </div>
+            
+            <button class="btn-add-contact" onclick="addContact()">+ 添加一行 (Add Row)</button>
+        </div>
+
+        <!-- 6. 个性签名 -->
+        <div class="form-group">
+            <h3>6. 说点什么吧 (Signature)</h3>
+            <textarea id="signatureInput" rows="3" placeholder="输入你的自我介绍或者喜欢的话... "></textarea>
+        </div>
+    </div>
+
+    <!-- CENTER PANEL: PREVIEW -->
+    <div class="column-center" id="previewColumn">
+        <canvas id="cardCanvas" width="750" height="1000"></canvas>
+        
+        <!-- PC端按钮区：保存 + 小重置 -->
+        <div class="pc-action-row">
+            <button class="btn-download" onclick="downloadImage()">保存卡片</button>
+            <button type="button" class="btn-reset-mini" onclick="window.resetData()" title="重置所有内容">↺</button>
+        </div>
+        
+        <!-- 移动端专属控制条 -->
+        <div class="preview-handle">
+            <div style="display: flex; flex-direction: column; justify-content: center;">
+                <span class="handle-text">预览图 (Preview)</span>
+                <span style="font-size: 10px; color: #888; margin-top: 2px;">保存失败请长按图片</span>
+            </div>
+            <div class="mobile-btn-group">
+                <button type="button" class="btn-reset-mini" onclick="window.resetData()" title="重置">↺</button>
+                <button class="btn-download-mini" onclick="downloadImage()">保存</button>
+                <button class="btn-toggle-view" onclick="toggleMobilePreview()" id="toggleBtn">展开全图 ⬇</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT PANEL: DETAILS -->
+    <div class="panel" id="panelDetails">
+        <h1>DETAILS & EXTRAS</h1>
+
+        <!-- 7. 聚合标签选择器 -->
+        <div class="form-group">
+            <h3>
+                7. 标签选择 (Tags) 
+            </h3>
+            <p style="font-size: 11px; color: #666; margin-bottom: 10px;">点击类别展开详细标签</p>
+            
+            <!-- 已选标签概览区域 -->
+            <div class="selected-summary" id="selectedSummary">
+                <span style="color: #555; font-size: 12px; width: 100%; text-align: center; margin-top: 8px;">
+                    暂无已选标签
+                </span>
+            </div>
+
+            <!-- Tab 切换 -->
+            <div class="tabs-header" id="tabsHeader">
+                <!-- 动态生成 -->
+            </div>
+
+            <!-- 类别与标签内容 -->
+            <div id="tabContent">
+                <!-- 动态生成 -->
+            </div>
+
+            <!-- 自定义标签 -->
+             <div style="margin-top: 15px;">
+                <input type="text" class="custom-input" id="customSpecific" placeholder="输入自定义标签 (回车)...">
+            </div>
+        </div>
+
+        <!-- 8. 个人照片 -->
+        <div class="form-group" style="border-top: 1px solid #333; padding-top: 10px; margin-top: auto;">
+            <h3>
+                8. 个人展示图 (Photo)
+                <label style="font-size:10px; cursor:pointer; text-transform:none;">
+                    <input type="checkbox" id="showPersonalPhoto"> 开启
+                </label>
+            </h3>
+            <p style="font-size: 11px; color: #666; margin-bottom: 10px; margin-top: -5px;">展示你的生活照片/祭坛/法器/作品</p>
+            
+            <div class="upload-box disabled-box" id="photoUploadBox">
+                <span id="photoLabel">点击上传照片</span>
+                <!-- multiple 属性允许选择多张图片 -->
+                <input type="file" id="photoInput" accept="image/*" disabled>
+                <button id="btnDeletePhoto" class="btn-clear-photo" style="display:none;" onclick="clearPersonalPhoto(event)">×</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    /**
+     * 数据配置
+     */
+    const META_DATA = {
+        gender: ['男', '女', 'Non-binary', 'Agender', 'Genderfluid', 'MtF', 'FtM'],
+        orientation: ['异性恋', '同性恋', '双性恋', '泛性恋', '无性恋', '智性恋', 'Demi'],
+    };
+
+    const HIERARCHY = {
+        "east": {
+            label: "东方体系",
+            display: "EASTERN SYSTEM / 东方体系",
+            categories: {
+                "east_calc": { 
+                    label: "命理 (Calculation)", 
+                    tags: ["八字", "紫微斗数", "奇门遁甲", "大六壬", "七政四余", "太乙神数", "六壬神课"] 
+                },
+                "east_div": { 
+                    label: "占卜 (Divination)", 
+                    tags: ["六爻", "梅花易数", "铁板神数", "金钱卦", "文王卦", "签诗", "求签", "抽签"] 
+                },
+                "east_env": { 
+                    label: "环境学 (Feng Shui)", 
+                    tags: ["风水", "阳宅", "阴宅", "玄空飞星", "八宅", "峦头", "理气", "择日", "择吉"] 
+                },
+                "east_magic": { 
+                    label: "魔法 (Magic)", 
+                    tags: ["符咒", "符箓", "道法", "茅山术", "科仪", "雷法", "斋醮", "祈福", "消灾", "禳解", "超度", "安魂", "内丹", "外丹", "辟邪", "镇宅", "开光", "结界"] 
+                },
+                "east_folk": { 
+                    label: "民俗与萨满 (Folk)", 
+                    tags: ["出马仙", "萨满", "观落阴", "扶乩", "打小人", "祝由术", "问米", "过阴", "牵亡", "走阴", "赶尸", "傩戏", "傩仪", "降神", "驱邪"] 
+                }
+            }
+        },
+        "west": {
+            label: "西方体系",
+            display: "WESTERN SYSTEM / 西方体系",
+            categories: {
+                "west_calc": {
+                    label: "命理 (Astrology)",
+                    tags: ["西方占星", "希腊占星", "卜卦占星", "阿拉伯占星", "吠陀占星", "占星择时", "时辰占星", "恒星占星"]
+                },
+                "west_div": {
+                    label: "占卜 (Divination)",
+                    tags: ["维特塔罗", "马赛塔罗", "透特塔罗", "雷诺曼", "基博卡", "西比拉", "欧洲地占", "阿拉伯地占", "咖啡占卜", "占卜骰", "符文占卜", "如尼占卜", "占卜摆锤", "灵摆", "骨卜", "卜筮"]
+                },
+                "west_magic": {
+                    label: "魔法 (Ceremonial)",
+                    tags: ["所罗门", "所罗门大钥匙", "所罗门小钥匙", "七十二柱魔神", "Goetia", "魔法阵", "召唤术", "护符", "符印", "五芒星", "六芒星", "天使魔法", "恶魔学", "祈请", "驱魔", "净化", "魔法结界", "赫耳墨斯主义", "Hermeticism", "苏菲主义", "Sufism", "毕卡提克斯", "Picatrix", "灯神", "Jinn", "精灵", "Nazar", "古兰经经文符"]
+                },
+                "west_env": {
+                    label: "环境学 (Space)",
+                    tags: ["吠陀风水", "印度瓦斯图", "Vastu", "空间能量"]
+                },
+                "west_folk": {
+                    label: "民俗与异教 (Pagan)",
+                    tags: ["胡督", "Hoodoo", "根源作工", "Rootwork", "巫毒", "Voodoo", "魔法油", "圣徒魔法", "诗篇魔法", "魔咒袋", "MojoBag", "咒瓶", "十字路口", "祖先祭祀", "威卡", "Wicca", "女巫", "独修巫师", "聚会", "Coven", "三倍法则", "月相魔法", "年度之轮", "八大节庆", "五元素", "女神信仰", "凯尔特", "德鲁伊", "如尼", "古埃及魔法", "亡灵书", "希腊化魔法", "PGM", "希腊魔法纸草", "奥菲斯", "新柏拉图", "赫卡忒", "赫耳墨斯", "阿芙罗狄忒", "希腊神话", "埃及神话"]
+                },
+                "west_modern": {
+                    label: "现代魔法 (Modern)",
+                    tags: ["草药魔法", "水晶魔法", "蜡烛魔法", "绳结魔法", "厨房女巫", "绿女巫", "混沌魔法", "印记魔法", "Sigil", "魔法香薰", "香料魔法", "符号魔法", "心理魔法", "结果魔法", "能量工作", "EnergyWork", "炼金术", "贤者之石", "卡巴拉", "生命之树", "黄金黎明", "泰勒玛", "克劳利", "以诺魔法", "玫瑰十字", "人造灵", "Tulpa", "Servitor", "Egregore", "赛博魔法", "TechnoMagick", "混合信仰", "PopCultureMagick"]
+                }
+            }
+        },
+        "newage": {
+            label: "新纪元",
+            display: "NEW AGE / 新纪元",
+            categories: {
+                "new_calc": {
+                    label: "命理 (Numerology)",
+                    tags: ["能量数字", "姓名学", "人类图", "灵魂蓝图", "前世今生"]
+                },
+                "new_heal": {
+                    label: "疗愈 (Healing)",
+                    tags: ["SRT", "西塔疗愈", "萨满疗愈", "灵气", "西洋灵气", "直传灵气", "灵摆疗愈", "指导灵", "高我", "天使", "大天使", "脉轮疗愈", "颂钵", "音叉", "声音疗愈", "芳疗", "精油疗愈", "阿卡西记录", "量子疗愈", "冥想", "正念", "显化", "吸引力法则"]
+                }
+            }
+        }
+    };
+
+    /**
+     * 状态管理
+     */
+    const state = {
+        themeColor: '#b388ff',
+        isDarkMode: true,
+        avatarImg: null,
+        personalPhotos: [], 
+        showPersonalPhoto: false,
+        name: 'Mystic User',
+        gender: '',
+        hideOrientation: false,
+        orientation: '',
+        signature: '', 
+        contacts: [
+            { platform: 'QQ', nick: '', id: '' },
+            { platform: '小红书', nick: '', id: '' }
+        ],
+        activeTab: 'east',
+        expandedCategories: new Set(),
+        roots: new Set(), 
+        categories: new Set(), 
+        tags: new Set(), 
+        customTags: new Set(),
+        categoryCustomTags: {} 
+    };
+
+    const CANVAS_WIDTH = 750;
+
+    // --- Save/Load Logic ---
+    function saveData() {
+        const dataToSave = {
+            name: state.name,
+            gender: state.gender,
+            orientation: state.orientation,
+            signature: state.signature,
+            contacts: state.contacts,
+            themeColor: state.themeColor,
+            isDarkMode: state.isDarkMode,
+            activeTab: state.activeTab,
+            showPersonalPhoto: state.showPersonalPhoto,
+            tags: Array.from(state.tags),
+            customTags: Array.from(state.customTags),
+            categoryCustomTags: {}
+        };
+        Object.keys(state.categoryCustomTags).forEach(k => {
+            dataToSave.categoryCustomTags[k] = Array.from(state.categoryCustomTags[k]);
+        });
+        localStorage.setItem('occult_profile_data_v1', JSON.stringify(dataToSave));
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem('occult_profile_data_v1');
+        if (!raw) return;
+        try {
+            const data = JSON.parse(raw);
+            if(data.name) state.name = data.name;
+            if(data.gender) state.gender = data.gender;
+            if(data.orientation) state.orientation = data.orientation;
+            if(data.signature) state.signature = data.signature;
+            if(data.contacts) state.contacts = data.contacts;
+            if(data.themeColor) state.themeColor = data.themeColor;
+            if(data.isDarkMode !== undefined) state.isDarkMode = data.isDarkMode;
+            if(data.activeTab) state.activeTab = data.activeTab;
+            if(data.showPersonalPhoto !== undefined) state.showPersonalPhoto = data.showPersonalPhoto;
+            
+            if(data.tags) state.tags = new Set(data.tags);
+            if(data.customTags) state.customTags = new Set(data.customTags);
+            
+            if(data.categoryCustomTags) {
+                state.categoryCustomTags = {};
+                Object.keys(data.categoryCustomTags).forEach(k => {
+                    state.categoryCustomTags[k] = new Set(data.categoryCustomTags[k]);
+                });
+            }
+            
+            document.getElementById('nameInput').value = state.name || '';
+            document.getElementById('signatureInput').value = state.signature || '';
+            document.getElementById('colorInput').value = state.themeColor || '#b388ff';
+            document.documentElement.style.setProperty('--accent', state.themeColor);
+            document.getElementById('showPersonalPhoto').checked = state.showPersonalPhoto;
+            updatePhotoSectionState(state.showPersonalPhoto);
+            cleanUpStates();
+        } catch(e) {
+            console.error("Failed to load data", e);
+        }
+    }
+
+    // --- Reset Logic ---
+    window.showResetModal = function() {
+        document.getElementById('resetModal').classList.add('active');
+    }
+    window.closeResetModal = function() {
+        document.getElementById('resetModal').classList.remove('active');
+    }
+    window.confirmReset = function() {
+        try {
+            localStorage.removeItem('occult_profile_data_v1');
+            state.themeColor = '#b388ff';
+            state.isDarkMode = true;
+            state.avatarImg = null;
+            state.personalPhotos = [];
+            state.showPersonalPhoto = false;
+            state.name = 'Mystic User';
+            state.gender = '';
+            state.hideOrientation = false;
+            state.orientation = '';
+            state.signature = '';
+            state.contacts = [ { platform: 'QQ', nick: '', id: '' }, { platform: '小红书', nick: '', id: '' } ];
+            state.activeTab = 'east';
+            state.expandedCategories = new Set();
+            state.roots = new Set();
+            state.categories = new Set();
+            state.tags = new Set();
+            state.customTags = new Set();
+            state.categoryCustomTags = {};
+
+            document.getElementById('colorInput').value = state.themeColor;
+            document.documentElement.style.setProperty('--accent', state.themeColor);
+            document.getElementById('nameInput').value = state.name;
+            document.getElementById('signatureInput').value = '';
+            document.getElementById('customGender').value = '';
+            document.getElementById('customSpecific').value = '';
+            document.getElementById('hideOrientation').checked = false;
+            document.getElementById('showPersonalPhoto').checked = false;
+            document.getElementById('avatarInput').value = '';
+            document.getElementById('avatarLabel').innerText = "点击上传头像";
+            document.getElementById('photoInput').value = '';
+            
+            setBgMode(true); 
+            updateUIColors();
+            createSimpleTagButtons('genderTags', META_DATA.gender, 'gender', true);
+            createSimpleTagButtons('orientationTags', META_DATA.orientation, 'orientation', true);
+            renderContactInputs();
+            renderTabs();
+            renderTabContent();
+            renderSelectedSummary();
+            updatePhotoSectionState(false);
+            
+            draw(); // Update main canvas
+            closeResetModal();
+        } catch(e) {
+            console.error("Reset failed:", e);
+            alert("重置错误: " + e.message);
+        }
+    }
+
+    // --- Init ---
+    function init() {
+        loadData();
+        createSimpleTagButtons('genderTags', META_DATA.gender, 'gender', true);
+        createSimpleTagButtons('orientationTags', META_DATA.orientation, 'orientation', true);
+        
+        if (state.gender) {
+             const gBtns = document.getElementById('genderTags').children;
+             Array.from(gBtns).forEach(b => { if(b.innerText === state.gender) { b.classList.add('active'); b.style.backgroundColor = state.themeColor; } });
+        }
+        if (state.orientation) {
+             const oBtns = document.getElementById('orientationTags').children;
+             Array.from(oBtns).forEach(b => { if(b.innerText === state.orientation) { b.classList.add('active'); b.style.backgroundColor = state.themeColor; } });
+        }
+
+        renderTabs();
+        renderTabContent();
+        renderContactInputs();
+
+        const colorInput = document.getElementById('colorInput');
+        colorInput.addEventListener('input', (e) => {
+            state.themeColor = e.target.value;
+            document.documentElement.style.setProperty('--accent', state.themeColor);
+            saveData();
+            updateUIColors();
+            renderTabs(); 
+            renderTabContent(); 
+            renderSelectedSummary();
+            draw();
+        });
+
+        document.getElementById('nameInput').addEventListener('input', (e) => { state.name = e.target.value; saveData(); draw(); });
+        document.getElementById('hideOrientation').addEventListener('change', (e) => { state.hideOrientation = e.target.checked; saveData(); draw(); });
+        document.getElementById('signatureInput').addEventListener('input', (e) => { state.signature = e.target.value; saveData(); draw(); });
+        bindCustomInput('customGender', (val) => { state.gender = val; saveData(); draw(); });
+        bindCustomInput('customSpecific', (val) => { state.customTags.add(val); saveData(); renderSelectedSummary(); draw(); });
+
+        const photoToggle = document.getElementById('showPersonalPhoto');
+        photoToggle.addEventListener('change', (e) => {
+            updatePhotoSectionState(e.target.checked);
+            saveData();
+            draw();
+        });
+
+        document.getElementById('avatarInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const img = new Image();
+                img.onload = function() {
+                    state.avatarImg = img;
+                    document.getElementById('avatarLabel').innerText = "头像已加载";
+                    draw();
+                };
+                img.src = evt.target.result;
+            };
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        });
+
+        document.getElementById('photoInput').addEventListener('change', handlePersonalPhoto);
+
+        setBgMode(state.isDarkMode);
+        updateUIColors();
+        draw();
+    }
+
+    // --- Core Logic ---
+
+    function renderContactInputs() {
+        const container = document.getElementById('contactListContainer');
+        container.innerHTML = '';
+        state.contacts.forEach((contact, index) => {
+            const row = document.createElement('div');
+            row.className = 'contact-row';
+            
+            const inputPlatform = document.createElement('input');
+            inputPlatform.type = 'text'; inputPlatform.className = 'input-platform'; inputPlatform.placeholder = '平台';
+            inputPlatform.value = contact.platform;
+            inputPlatform.oninput = (e) => { contact.platform = e.target.value; saveData(); draw(); };
+
+            const inputNick = document.createElement('input');
+            inputNick.type = 'text'; inputNick.className = 'input-nick'; inputNick.placeholder = '昵称';
+            inputNick.value = contact.nick;
+            inputNick.oninput = (e) => { contact.nick = e.target.value; saveData(); draw(); };
+
+            const inputId = document.createElement('input');
+            inputId.type = 'text'; inputId.className = 'input-id'; inputId.placeholder = '账号(选)';
+            inputId.value = contact.id;
+            inputId.oninput = (e) => { contact.id = e.target.value; saveData(); draw(); };
+
+            const btnDel = document.createElement('button');
+            btnDel.className = 'btn-icon'; btnDel.innerHTML = '×';
+            btnDel.onclick = () => removeContact(index);
+
+            row.appendChild(inputPlatform); row.appendChild(inputNick); row.appendChild(inputId); row.appendChild(btnDel);
+            container.appendChild(row);
+        });
+    }
+
+    function addContact() { state.contacts.push({ platform: '', nick: '', id: '' }); saveData(); renderContactInputs(); draw(); }
+    function removeContact(index) { state.contacts.splice(index, 1); saveData(); renderContactInputs(); draw(); }
+
+    function setBgMode(isDark) {
+        state.isDarkMode = isDark; saveData();
+        const btnDark = document.getElementById('btnBgDark');
+        const btnLight = document.getElementById('btnBgLight');
+        if (isDark) { btnDark.classList.add('active'); btnLight.classList.remove('active'); } 
+        else { btnDark.classList.remove('active'); btnLight.classList.add('active'); }
+        draw();
+    }
+
+    function handlePersonalPhoto(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const img = new Image();
+            img.onload = () => { state.personalPhotos = [img]; updatePhotoSectionState(true); draw(); };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    }
+
+    function updatePhotoSectionState(isEnabled) {
+        state.showPersonalPhoto = isEnabled;
+        const photoBox = document.getElementById('photoUploadBox');
+        const photoInput = document.getElementById('photoInput');
+        const label = document.getElementById('photoLabel');
+        const delBtn = document.getElementById('btnDeletePhoto');
+        if (!photoBox || !photoInput) return;
+
+        if(state.showPersonalPhoto) {
+            photoBox.classList.remove('disabled-box'); photoInput.disabled = false;
+            if (state.personalPhotos.length > 0) {
+                label.innerText = "✅ 已加载 (点击更换)"; delBtn.style.display = 'flex';
+            } else {
+                label.innerText = "点击上传照片"; delBtn.style.display = 'none';
+            }
+        } else {
+            photoBox.classList.add('disabled-box'); photoInput.disabled = true; delBtn.style.display = 'none';
+        }
+    }
+
+    window.clearPersonalPhoto = function(e) {
+        if(e) e.stopPropagation();
+        state.personalPhotos = [];
+        updatePhotoSectionState(true);
+        draw();
+    };
+
+    function updateUIColors() {
+        // Safe check for elements before styling
+        const dlBtn = document.querySelector('.btn-download'); if(dlBtn) dlBtn.style.backgroundColor = state.themeColor;
+        const toggleBtn = document.querySelector('.btn-toggle-view'); if(toggleBtn) toggleBtn.style.backgroundColor = state.themeColor;
+        document.querySelectorAll('.tag-btn.active').forEach(btn => { btn.style.backgroundColor = state.themeColor; });
+        document.querySelectorAll('.tag-btn.custom-added').forEach(btn => { btn.style.borderColor = state.themeColor; });
+        
+        // Also update modal quality buttons if active
+        document.querySelectorAll('.quality-btn.active').forEach(btn => {
+            btn.style.backgroundColor = state.themeColor;
+            btn.style.color = '#000'; // Ensure contrast for active button
+        });
+    }
+
+    function bindCustomInput(id, callback) {
+        const input = document.getElementById(id);
+        input.addEventListener('change', (e) => {
+            if(e.target.value.trim()) { callback(e.target.value.trim()); e.target.value = ''; }
+        });
+    }
+
+    function createSimpleTagButtons(containerId, items, stateKey, isSingle) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = '';
+        items.forEach(item => {
+            const btn = document.createElement('div');
+            btn.className = 'tag-btn'; btn.innerText = item;
+            if(state[stateKey] === item) { btn.classList.add('active'); btn.style.backgroundColor = state.themeColor; }
+            btn.onclick = () => {
+                if (isSingle) {
+                    state[stateKey] = item; saveData();
+                    Array.from(container.children).forEach(c => { c.classList.remove('active'); c.style.backgroundColor = ''; });
+                    btn.classList.add('active'); btn.style.backgroundColor = state.themeColor;
+                }
+                draw();
+            };
+            container.appendChild(btn);
+        });
+    }
+
+    function renderTabs() {
+        const container = document.getElementById('tabsHeader');
+        container.innerHTML = '';
+        Object.keys(HIERARCHY).forEach(rootKey => {
+            const rootData = HIERARCHY[rootKey];
+            const tab = document.createElement('div');
+            tab.className = 'tab-item';
+            if (state.activeTab === rootKey) {
+                tab.classList.add('active'); tab.style.color = state.themeColor; tab.style.borderBottomColor = state.themeColor;
+            }
+            tab.innerText = rootData.label;
+            tab.onclick = () => { state.activeTab = rootKey; saveData(); renderTabs(); renderTabContent(); };
+            container.appendChild(tab);
+        });
+    }
+
+    function renderTabContent() {
+        const container = document.getElementById('tabContent');
+        container.innerHTML = '';
+        const rootData = HIERARCHY[state.activeTab];
+        Object.keys(rootData.categories).forEach(catKey => {
+            const catData = rootData.categories[catKey];
+            let selectedCount = 0;
+            catData.tags.forEach(t => { if(state.tags.has(t)) selectedCount++; });
+            if(state.categoryCustomTags[catKey]) selectedCount += state.categoryCustomTags[catKey].size;
+
+            const block = document.createElement('div'); block.className = 'category-block';
+            const header = document.createElement('div'); header.className = 'category-header';
+            if (state.expandedCategories.has(catKey)) header.classList.add('active');
+
+            const countDisplay = selectedCount > 0 ? `<span class="category-count" style="${selectedCount > 0 ? `background:${state.themeColor}; color: #000;` : ''}">${selectedCount}</span>` : '';
+            header.innerHTML = `<span class="category-title" style="${state.expandedCategories.has(catKey) ? `color:${state.themeColor}` : ''}">${catData.label}</span>${countDisplay}`;
+            header.onclick = () => {
+                if (state.expandedCategories.has(catKey)) state.expandedCategories.delete(catKey);
+                else state.expandedCategories.add(catKey);
+                renderTabContent();
+            };
+            block.appendChild(header);
+
+            const tagsWrapper = document.createElement('div');
+            tagsWrapper.className = 'tags-wrapper ' + (state.expandedCategories.has(catKey) ? 'show' : '');
+            const tagContainer = document.createElement('div'); tagContainer.className = 'tag-container';
+            
+            catData.tags.forEach(tag => {
+                const btn = document.createElement('div'); btn.className = 'tag-btn';
+                if (state.tags.has(tag)) { btn.classList.add('active'); btn.style.backgroundColor = state.themeColor; }
+                btn.innerText = tag;
+                btn.onclick = () => { toggleTag(state.activeTab, catKey, tag); };
+                tagContainer.appendChild(btn);
+            });
+
+            if(state.categoryCustomTags[catKey]) {
+                state.categoryCustomTags[catKey].forEach(tag => {
+                    const btn = document.createElement('div'); btn.className = 'tag-btn active custom-added';
+                    btn.style.backgroundColor = state.themeColor; btn.innerText = tag + " ×";
+                    btn.onclick = () => {
+                        state.categoryCustomTags[catKey].delete(tag); cleanUpStates(); saveData(); renderTabContent(); renderSelectedSummary(); draw();
+                    };
+                    tagContainer.appendChild(btn);
+                });
+            }
+
+            const addBtn = document.createElement('div'); addBtn.className = 'tag-btn tag-btn-add';
+            addBtn.innerText = '+'; addBtn.title = "添加自定义标签";
+            addBtn.onclick = () => {
+                const input = document.createElement('input'); input.type = 'text'; input.className = 'tag-btn-input'; input.placeholder = '新标签...';
+                const confirmAdd = () => {
+                    const val = input.value.trim();
+                    if (val) {
+                        if (!state.categoryCustomTags[catKey]) state.categoryCustomTags[catKey] = new Set();
+                        state.categoryCustomTags[catKey].add(val);
+                        state.roots.add(state.activeTab); state.categories.add(catKey);
+                        cleanUpStates(); saveData(); renderTabContent(); renderSelectedSummary(); draw();
+                    } else renderTabContent();
+                };
+                input.onkeydown = (e) => { if (e.key === 'Enter') confirmAdd(); };
+                input.onblur = () => confirmAdd();
+                tagContainer.replaceChild(input, addBtn); input.focus();
+            };
+            tagContainer.appendChild(addBtn);
+
+            tagsWrapper.appendChild(tagContainer); block.appendChild(tagsWrapper); container.appendChild(block);
+        });
+    }
+
+    function toggleTag(rootKey, catKey, tag) {
+        if (state.tags.has(tag)) state.tags.delete(tag);
+        else { state.tags.add(tag); state.roots.add(rootKey); state.categories.add(catKey); }
+        cleanUpStates(); saveData(); renderTabContent(); renderSelectedSummary(); draw();
+    }
+
+    function cleanUpStates() {
+        const activeTags = state.tags; const newCategories = new Set(); const newRoots = new Set();
+        Object.keys(HIERARCHY).forEach(rKey => {
+            const rData = HIERARCHY[rKey]; let rootHasTag = false;
+            Object.keys(rData.categories).forEach(cKey => {
+                const cData = rData.categories[cKey];
+                const hasRegularTag = cData.tags.some(t => activeTags.has(t));
+                const hasCustomTag = state.categoryCustomTags[cKey] && state.categoryCustomTags[cKey].size > 0;
+                if (hasRegularTag || hasCustomTag) { newCategories.add(cKey); rootHasTag = true; }
+            });
+            if (rootHasTag) newRoots.add(rKey);
+        });
+        state.categories = newCategories; state.roots = newRoots;
+    }
+
+    function renderSelectedSummary() {
+        const container = document.getElementById('selectedSummary'); container.innerHTML = '';
+        let allTags = [...state.tags];
+        Object.keys(state.categoryCustomTags).forEach(k => { allTags = [...allTags, ...state.categoryCustomTags[k]]; });
+        allTags = [...allTags, ...state.customTags];
+        
+        if (allTags.length === 0) {
+            container.innerHTML = `<span style="color: #555; font-size: 12px; width: 100%; text-align: center; margin-top: 8px;">暂无已选标签</span>`;
+            return;
+        }
+        allTags.forEach(tag => {
+            const badge = document.createElement('div'); badge.className = 'selected-tag';
+            badge.style.backgroundColor = state.themeColor; badge.innerHTML = `${tag} <span>×</span>`;
+            badge.onclick = () => {
+                if (state.tags.has(tag)) state.tags.delete(tag);
+                else if (state.customTags.has(tag)) state.customTags.delete(tag);
+                else Object.keys(state.categoryCustomTags).forEach(k => state.categoryCustomTags[k].delete(tag));
+                cleanUpStates(); saveData(); renderTabContent(); renderSelectedSummary(); draw();
+            };
+            container.appendChild(badge);
+        });
+    }
+
+    // --- Core Drawing Logic Refactored ---
+
+    function estimateSectionHeight(ctx, title, tags) {
+        let h = 40 + 50 + 30; 
+        if (!tags || tags.length === 0) tags = ['Placeholder'];
+        const startX = 50; const maxX = CANVAS_WIDTH - 50;
+        let x = startX; let lines = 1;
+        ctx.font = '24px Arial';
+        tags.forEach(tag => {
+            const width = ctx.measureText(tag).width + 40; 
+            if (x + width > maxX) { x = startX; lines++; }
+            x += width + 12;
+        });
+        h += (lines - 1) * 55; 
+        return h;
+    }
+
+    function wrapText(ctx, text, maxWidth) {
+        const paragraphs = text.split('\n'); let lines = [];
+        paragraphs.forEach(para => {
+            if (!para) { lines.push(''); return; }
+            let line = '';
+            for (let i = 0; i < para.length; i++) {
+                const testLine = line + para[i];
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && i > 0) { lines.push(line); line = para[i]; }
+                else { line = testLine; }
+            }
+            lines.push(line);
+        });
+        return lines;
+    }
+
+    // New generic render function
+    function renderCanvas(targetCanvas, scaleFactor = 2) {
+        const ctx = targetCanvas.getContext('2d');
+        const C = state.isDarkMode ? {
+            bgGrad1: '#1a1a1a', bgGrad2: '#050505', border: '#333', symbol: '#444', textMain: '#fff', textSub: '#888', divider: '#333',
+            tagBg: '#222', tagBorder: '#333', tagText: '#ccc', icon: '#bbb', watermark: '#444', placeholderBg: '#1a1a1a', placeholderText: '#444'
+        } : {
+            bgGrad1: '#ffffff', bgGrad2: '#f8f8f8', border: '#e0e0e0', symbol: '#eee', textMain: '#222', textSub: '#666', divider: '#eee',
+            tagBg: '#f3f3f3', tagBorder: '#e0e0e0', tagText: '#444', icon: '#666', watermark: '#ccc', placeholderBg: '#f5f5f5', placeholderText: '#ccc'
+        };
+
+        // 1. Calc Height
+        let y = 0;
+        const avatarH = 240; y += avatarH + 180; 
+
+        // Contacts height
+        const activeContacts = [];
+        state.contacts.forEach(c => {
+            if (c.platform.trim()) {
+                let parts = []; if (c.nick.trim()) parts.push("@" + c.nick.trim()); if (c.id.trim()) parts.push(c.id.trim());
+                if (parts.length > 0) activeContacts.push(`${c.platform.trim()}: ${parts.join(' ')}`);
+            }
+        });
+        if (activeContacts.length > 0) {
+            const estimatedLines = Math.ceil(activeContacts.length / 2); y += estimatedLines * 45 + 30;
+        }
+
+        // Signature height
+        let sigLines = [];
+        if (state.signature) {
+            ctx.font = 'italic 24px "Helvetica Neue", Arial'; 
+            sigLines = wrapText(ctx, state.signature, CANVAS_WIDTH - 120);
+            y += sigLines.length * 35 + 20;
+        }
+
+        // Hierarchy height
+        Object.keys(HIERARCHY).forEach(rootKey => {
+            if (state.roots.has(rootKey)) {
+                const rootData = HIERARCHY[rootKey]; y += 60; 
+                let hasActiveCategory = false;
+                Object.keys(rootData.categories).forEach(catKey => {
+                    if (state.categories.has(catKey)) {
+                        const catData = rootData.categories[catKey];
+                        const regularTags = catData.tags.filter(t => state.tags.has(t));
+                        const customCatTags = state.categoryCustomTags[catKey] ? Array.from(state.categoryCustomTags[catKey]) : [];
+                        const activeTags = [...regularTags, ...customCatTags];
+                        if(activeTags.length > 0) { hasActiveCategory = true; y += estimateSectionHeight(ctx, catData.label, activeTags); }
+                    }
+                });
+                if (!hasActiveCategory) y -= 60; else y += 30;
+            }
+        });
+
+        // Custom Tags height
+        if (state.customTags.size > 0) y += estimateSectionHeight(ctx, 'CUSTOM / 自定义', Array.from(state.customTags));
+
+        // Photo height
+        if (state.showPersonalPhoto) {
+            y += 60; 
+            if (state.personalPhotos.length > 0) {
+                const photoW = CANVAS_WIDTH - 100;
+                state.personalPhotos.forEach(img => {
+                    const scale = photoW / img.width;
+                    const photoH = img.height * scale;
+                    y += photoH + 20; 
+                });
+            } else { y += 320; }
+            y += 40; 
+        }
+
+        y += 200; // Footer margin
+
+        // 2. Setup Canvas
+        const logicalHeight = Math.max(1000, y);
+        targetCanvas.width = CANVAS_WIDTH * scaleFactor;
+        targetCanvas.height = logicalHeight * scaleFactor;
+        ctx.scale(scaleFactor, scaleFactor); // Key: Scale context
+
+        // 3. Draw
+        const gradient = ctx.createLinearGradient(0, 0, 0, logicalHeight);
+        gradient.addColorStop(0, C.bgGrad1); gradient.addColorStop(1, C.bgGrad2);
+        ctx.fillStyle = gradient; ctx.fillRect(0, 0, CANVAS_WIDTH, logicalHeight);
+
+        ctx.strokeStyle = C.border; ctx.lineWidth = 2;
+        ctx.strokeRect(20, 20, CANVAS_WIDTH - 40, logicalHeight - 40);
+
+        ctx.fillStyle = state.themeColor; ctx.font = '80px serif'; ctx.textAlign = 'center';
+        ctx.fillText('☾', CANVAS_WIDTH / 2, 100);
+
+        let curY = 160;
+
+        // Avatar
+        const avatarSize = 180; const centerX = CANVAS_WIDTH / 2;
+        ctx.save(); ctx.beginPath(); ctx.arc(centerX, curY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+        if (state.avatarImg) {
+            const scale = Math.max(avatarSize / state.avatarImg.width, avatarSize / state.avatarImg.height);
+            const w = state.avatarImg.width * scale; const h = state.avatarImg.height * scale;
+            ctx.drawImage(state.avatarImg, centerX - w/2, curY + avatarSize/2 - h/2, w, h);
+        } else {
+            ctx.fillStyle = C.placeholderBg; ctx.fillRect(centerX - avatarSize/2, curY, avatarSize, avatarSize);
+            ctx.fillStyle = C.placeholderText; ctx.font = '24px Arial'; ctx.fillText('NO IMG', centerX, curY + avatarSize/2 + 8);
+        }
+        ctx.restore();
+        ctx.beginPath(); ctx.arc(centerX, curY + avatarSize / 2, avatarSize / 2 + 5, 0, Math.PI * 2);
+        ctx.strokeStyle = state.themeColor; ctx.lineWidth = 3; ctx.stroke();
+
+        curY += avatarSize + 50;
+
+        // Name & Gender
+        ctx.fillStyle = C.textMain; ctx.font = 'bold 48px Helvetica, Arial'; ctx.fillText(state.name || 'Unnamed', centerX, curY); curY += 40;
+        ctx.fillStyle = C.textSub; ctx.font = '28px Arial';
+        let metaText = state.gender || 'Unknown'; if (!state.hideOrientation) metaText += '  |  ' + (state.orientation || 'Secret');
+        ctx.fillText(metaText, centerX, curY); curY += 50; 
+
+        // Contacts
+        if (activeContacts.length > 0) {
+            ctx.font = '20px Arial'; ctx.textAlign = 'left'; ctx.fillStyle = C.textSub; 
+            const itemSpacing = 35; const maxWidth = CANVAS_WIDTH - 100;
+            let lineItems = []; let currentLineWidth = 0; const rows = [];
+            activeContacts.forEach(text => {
+                const textW = ctx.measureText(text).width;
+                if (currentLineWidth + textW + itemSpacing > maxWidth && lineItems.length > 0) {
+                    rows.push({ items: lineItems, width: currentLineWidth }); lineItems = []; currentLineWidth = 0;
+                }
+                lineItems.push({ text: text, width: textW }); currentLineWidth += textW + itemSpacing;
+            });
+            if (lineItems.length > 0) rows.push({ items: lineItems, width: currentLineWidth - itemSpacing }); 
+            rows.forEach(row => {
+                let startX = (CANVAS_WIDTH - row.width) / 2;
+                row.items.forEach(item => { ctx.fillText(item.text, startX, curY); startX += item.width + itemSpacing; });
+                curY += 40;
+            });
+            ctx.textAlign = 'center'; curY += 10;
+        }
+
+        // Signature
+        if (state.signature && sigLines.length > 0) {
+            ctx.fillStyle = C.textSub; ctx.font = 'italic 24px "Helvetica Neue", Arial'; 
+            sigLines.forEach(line => { ctx.fillText(line, centerX, curY); curY += 35; });
+            curY += 20; 
+        } else { curY += 10; }
+
+        ctx.strokeStyle = C.divider; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(100, curY); ctx.lineTo(CANVAS_WIDTH - 100, curY); ctx.stroke(); curY += 50;
+
+        // Tags Drawing
+        Object.keys(HIERARCHY).forEach(rootKey => {
+            if (state.roots.has(rootKey)) {
+                const rootData = HIERARCHY[rootKey];
+                ctx.textAlign = 'left'; ctx.fillStyle = state.themeColor; ctx.font = 'bold 28px Arial';
+                ctx.fillText(rootData.display, 50, curY); ctx.fillRect(50, curY + 12, 40, 3); curY += 60;
+                Object.keys(rootData.categories).forEach(catKey => {
+                    if (state.categories.has(catKey)) {
+                        const catData = rootData.categories[catKey];
+                        const regularTags = catData.tags.filter(t => state.tags.has(t));
+                        const customCatTags = state.categoryCustomTags[catKey] ? Array.from(state.categoryCustomTags[catKey]) : [];
+                        const activeTags = [...regularTags, ...customCatTags];
+                        if (activeTags.length > 0) {
+                            ctx.fillStyle = C.textSub; ctx.font = 'bold 22px Arial'; ctx.fillText(catData.label, 60, curY);
+                            ctx.fillStyle = state.themeColor; ctx.fillRect(45, curY - 18, 4, 24); curY += 40;
+                            curY = drawTagsFlow(ctx, activeTags, curY, C); curY += 20; 
+                        }
+                    }
+                });
+                curY += 20; 
+            }
+        });
+
+        // Custom Tags
+        if (state.customTags.size > 0) {
+            ctx.textAlign = 'left'; ctx.fillStyle = state.themeColor; ctx.font = 'bold 24px Arial';
+            ctx.fillText("CUSTOM / 自定义领域", 50, curY); ctx.fillRect(50, curY + 10, 40, 2); curY += 50;
+            curY = drawTagsFlow(ctx, Array.from(state.customTags), curY, C); curY += 30;
+        }
+
+        // Photo
+        if (state.showPersonalPhoto) {
+            curY += 20; ctx.textAlign = 'left'; ctx.fillStyle = state.themeColor; ctx.font = 'bold 24px Arial';
+            ctx.fillText('PHOTO / 个人展示', 50, curY); curY += 30;
+            const photoW = CANVAS_WIDTH - 100; const photoX = 50;
+            if (state.personalPhotos.length > 0) {
+                state.personalPhotos.forEach(img => {
+                    const scale = photoW / img.width; const photoH = img.height * scale;
+                    ctx.strokeStyle = C.border; ctx.lineWidth = 1; ctx.strokeRect(photoX - 5, curY - 5, photoW + 10, photoH + 10);
+                    ctx.drawImage(img, photoX, curY, photoW, photoH); curY += photoH + 20; 
+                });
+            } else {
+                ctx.fillStyle = C.placeholderBg; ctx.fillRect(photoX, curY, photoW, 300);
+                ctx.fillStyle = C.placeholderText; ctx.textAlign = 'center'; ctx.font = '24px Arial';
+                ctx.fillText('PHOTO PLACEHOLDER', centerX, curY + 150); curY += 320;
+            }
+        }
+
+        const footerY = logicalHeight - 40; 
+        ctx.fillStyle = C.watermark; ctx.font = '20px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('GENERATED BY OCCULT PROFILE', centerX, footerY);
+    }
+
+    function drawTagsFlow(ctx, tags, startY, Colors) {
+        let currentY = startY; const startX = 50; const maxX = CANVAS_WIDTH - 50;
+        const lineHeight = 55; const paddingX = 20; let x = startX;
+        ctx.font = '24px Arial'; 
+        tags.forEach(tag => {
+            const textWidth = ctx.measureText(tag).width; const boxWidth = textWidth + paddingX * 2;
+            if (x + boxWidth > maxX) { x = startX; currentY += lineHeight; }
+            ctx.fillStyle = Colors.tagBg; ctx.strokeStyle = Colors.tagBorder; ctx.lineWidth = 1;
+            roundRect(ctx, x, currentY - 26, boxWidth, 38, 19, true, true);
+            ctx.fillStyle = Colors.tagText; ctx.textAlign = 'left'; ctx.fillText(tag, x + paddingX, currentY);
+            x += boxWidth + 12; 
+        });
+        return currentY + 50; 
+    }
+
+    function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
+        if (typeof stroke === 'undefined') stroke = true; if (typeof radius === 'undefined') radius = 5;
+        ctx.beginPath(); ctx.moveTo(x + radius, y); ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius); ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height); ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius); ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y); ctx.closePath();
+        if (stroke) ctx.stroke(); if (fill) ctx.fill();
+    }
+
+    // Main Draw Function call (renders to screen canvas)
+    function draw() {
+        const canvas = document.getElementById('cardCanvas');
+        renderCanvas(canvas, 2); // Default display scale 2x
+    }
+
+    // --- Save Modal Logic (Mobile) ---
+    let currentSaveScale = 2;
+
+    window.openSaveModal = function() {
+        document.getElementById('savePreviewModal').classList.add('active');
+        window.updatePreviewImage(2); // Default 2x
+    }
+
+    window.closeSaveModal = function() {
+        document.getElementById('savePreviewModal').classList.remove('active');
+    }
+
+    window.updatePreviewImage = function(scale) {
+        currentSaveScale = scale;
+        // Update button UI
+        const btns = document.querySelectorAll('.quality-btn');
+        btns.forEach(b => {
+            b.classList.remove('active');
+            b.style.backgroundColor = ''; // Clear inline style
+            b.style.color = '#888';
+        });
+        
+        let activeBtn;
+        if(scale === 1) activeBtn = btns[0];
+        if(scale === 2) activeBtn = btns[1];
+        if(scale === 4) activeBtn = btns[2];
+        
+        if(activeBtn) {
+            activeBtn.classList.add('active');
+            activeBtn.style.backgroundColor = state.themeColor;
+            activeBtn.style.color = '#000'; // Ensure contrast
+        }
+
+        // Provide visual feedback - loading
+        const img = document.getElementById('finalPreviewImg');
+        img.style.opacity = '0.5';
+
+        // Render to offscreen canvas
+        // Use timeout to allow UI update
+        setTimeout(() => {
+            const offCanvas = document.createElement('canvas');
+            renderCanvas(offCanvas, scale);
+            
+            offCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                // Clean up old url
+                if(img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+                img.src = url;
+                img.style.opacity = '1';
+            }, 'image/png');
+        }, 10);
+    }
+
+    window.downloadFromModal = function() {
+        const img = document.getElementById('finalPreviewImg');
+        if (!img.src) return;
+        
+        const link = document.createElement('a');
+        link.download = `Occult_Profile_${state.name || 'User'}.png`;
+        link.href = img.src;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function downloadImage() {
+        // PC Logic: Direct Download
+        if (window.innerWidth > 768) {
+            const btn = document.querySelector('.btn-download');
+            const originalText = btn.innerText;
+            btn.innerText = '生成中...'; btn.disabled = true;
+            
+            setTimeout(() => {
+                const offCanvas = document.createElement('canvas');
+                renderCanvas(offCanvas, 2); // PC default 2x
+                offCanvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = `Occult_Profile_${state.name || 'User'}.png`;
+                    link.href = url;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    btn.innerText = originalText; btn.disabled = false;
+                });
+            }, 50);
+        } else {
+            // Mobile Logic: Open Modal
+            openSaveModal();
+        }
+    }
+
+    // Mobile specific JS
+    function toggleMobilePreview() {
+        const col = document.getElementById('previewColumn');
+        const btn = document.getElementById('toggleBtn');
+        col.classList.toggle('expanded');
+        
+        if (col.classList.contains('expanded')) {
+            btn.innerHTML = '收起 ▲';
+        } else {
+            btn.innerHTML = '展开全图 ⬇';
+            col.scrollTop = 0;
+        }
+    }
+
+    init();
+
+</script>
+</body>
+</html>
