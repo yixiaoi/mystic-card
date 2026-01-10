@@ -553,7 +553,7 @@
         <!-- PC端按钮区：保存 + 小重置 -->
         <div class="pc-action-row">
             <button class="btn-download" onclick="downloadImage()">保存卡片</button>
-            <button type="button" class="btn-reset-mini" onclick="window.resetData()" title="重置所有内容">↺</button>
+            <button type="button" class="btn-reset-mini" onclick="window.showResetModal()" title="重置所有内容">↺</button>
         </div>
         
         <!-- 移动端专属控制条 -->
@@ -563,7 +563,7 @@
                 <span style="font-size: 10px; color: #888; margin-top: 2px;">保存失败请长按图片</span>
             </div>
             <div class="mobile-btn-group">
-                <button type="button" class="btn-reset-mini" onclick="window.resetData()" title="重置">↺</button>
+                <button type="button" class="btn-reset-mini" onclick="window.showResetModal()" title="重置">↺</button>
                 <button class="btn-download-mini" onclick="downloadImage()">保存</button>
                 <button class="btn-toggle-view" onclick="toggleMobilePreview()" id="toggleBtn">展开全图 ⬇</button>
             </div>
