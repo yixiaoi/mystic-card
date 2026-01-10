@@ -466,8 +466,8 @@
                 <button class="quality-btn active" onclick="window.updatePreviewImage(2)">2x (高)</button>
                 <button class="quality-btn" onclick="window.updatePreviewImage(4)">4x (超)</button>
             </div>
-            <button class="btn-download" style="width:100%; margin:0;" onclick="downloadFromModal()">保存到相册</button>
-            <span class="save-hint">如果点击按钮无反应，请长按上方图片保存</span>
+            <button class="btn-download" style="width:100%; margin:0;" onclick="downloadFromModal()">保存到相册 / 分享</button>
+            <span class="save-hint">提示：如果点击按钮只是下载文件或无反应<br>请直接长按上方图片选择“保存到相册”</span>
         </div>
     </div>
 </div>
@@ -1439,6 +1439,7 @@
 
     // --- Save Modal Logic (Mobile) ---
     let currentSaveScale = 2;
+    let currentPreviewBlob = null; // 新增：用于存储当前的 Blob 对象
 
     window.openSaveModal = function() {
         document.getElementById('savePreviewModal').classList.add('active');
@@ -1481,6 +1482,9 @@
             renderCanvas(offCanvas, scale);
             
             offCanvas.toBlob(function(blob) {
+                // 存储 Blob 供分享使用
+                currentPreviewBlob = blob;
+                
                 const url = URL.createObjectURL(blob);
                 // Clean up old url
                 if(img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
@@ -1490,12 +1494,34 @@
         }, 10);
     }
 
-    window.downloadFromModal = function() {
+    window.downloadFromModal = async function() {
+        if (!currentPreviewBlob) return;
+
+        const fileName = `Occult_Profile_${state.name || 'User'}.png`;
+
+        // 尝试使用 Web Share API (原生分享)
+        // 这在 iOS Safari 和许多 Android 浏览器上能唤起原生菜单，里面包含"保存图像"
+        if (navigator.share && navigator.canShare) {
+            try {
+                const file = new File([currentPreviewBlob], fileName, { type: 'image/png' });
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: '神秘学扩列卡',
+                        text: '我的神秘学档案'
+                    });
+                    return; // 如果分享成功唤起，就不走下面的下载逻辑了
+                }
+            } catch (error) {
+                console.log('Share failed or canceled', error);
+                // 如果分享失败（比如用户取消），不需做额外处理，或者可以回退到下载
+            }
+        }
+
+        // 回退方案：传统的下载链接 (这是网页的极限)
         const img = document.getElementById('finalPreviewImg');
-        if (!img.src) return;
-        
         const link = document.createElement('a');
-        link.download = `Occult_Profile_${state.name || 'User'}.png`;
+        link.download = fileName;
         link.href = img.src;
         document.body.appendChild(link);
         link.click();
