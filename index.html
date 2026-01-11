@@ -1423,7 +1423,7 @@
         // Calculate centered block start position
         // Approximate text width ~290
         const contentBlockWidth = qrSize + gap + 290; 
-        const startX = (CANVAS_WIDTH - contentBlockWidth) / 2 + 90; // +90 offset for balance
+        const startX = 50; // Align with tag/title left edge
         
         // Draw QR (Code generated)
         const qr = new QRious({
@@ -1446,7 +1446,7 @@
         
         ctx.fillStyle = state.themeColor;
         ctx.font = '14px Arial'; 
-        ctx.fillText("访问: https://yixiaoi.github.io/mystic-card/", textX, textYCenter + 15);
+        ctx.fillText("扫描二维码访问: https://yixiaoi.github.io/mystic-card/", textX, textYCenter + 15);
 
         // Invisible spacer text as requested
         ctx.fillStyle = C.bgGrad2;
